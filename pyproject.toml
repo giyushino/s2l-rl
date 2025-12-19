@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "s2l_rl"
+description = "s2l for rl"
+readme = "README.md"
+#license = { text = "BUSL-1.1" }
+version = "0.1.0"
+authors = [{ name = "Allan Zhang", email = "allanzhang@ucla.edu" }]
+requires-python = ">=3.12"
+dependencies = [
+    "torch>=2.0.0",
+    "transformers>=4.45.2",
+    "tokenizers>=0.20.1",
+    "datasets",
+    "uv",
+    "argparse",
+    "tdqm",
+    "wandb",
+]
