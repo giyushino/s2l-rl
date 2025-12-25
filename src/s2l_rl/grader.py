@@ -21,13 +21,15 @@ def extract_solution(solution_str):
 
 
 def normalize_latex_string(s):
-    """
+    r"""
     Final robust normalization function:
     1. Removes LaTeX delimiters and metadata (\left, \right, \boxed, etc.).
     2. Removes all internal whitespace.
     3. Handles numerical equivalence (4.00 -> 4).
     """
-    
+    # add this so if we don't extract a solution, we just return None
+    if not s:
+        return "None"
     # 1. Remove LaTeX delimiters, metadata, and trim
     s = re.sub(r'\\left|\\right|\[.*?\]|\\boxed', '', s)
     s = s.strip()
@@ -84,4 +86,6 @@ def compute_score(data_source, solution_str, ground_truth, extra_info=None):
     return 0
 
 
-
+if __name__ == "__main__":
+    test_string = "\\boxed{bruh}"
+    print(normalize_latex_string(extract_solution(test_string)))
