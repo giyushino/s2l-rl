@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 from pathlib import Path
 
@@ -17,7 +18,7 @@ def split_dataset(total_examples: int, num_gpus: int):
 
     return splits
 
-def main():
+def main(step=10):
     # Configuration
     project_path = Path(__file__).parent.parent.parent.absolute()
     num_gpus = 8
@@ -25,13 +26,12 @@ def main():
 
     # Common arguments
     model_name = "Qwen/Qwen2.5-1.5B-Instruct"
-    policy_path = f"{project_path}/checkpoints/global_step_10/actor/lora_adapter/"
+    policy_path = f"{project_path}/checkpoints/gsm8k/global_step_{step}/actor/lora_adapter"
     dataset_path = f"{project_path}/datasets/gsm8k/train.parquet"
-    old_policy = False
     max_tokens = 2048
     rollout_size = 16
     batch_size = 4
-    save_dir = f"{project_path}/data/step_10"
+    save_dir = f"{project_path}/data/gsm8k/step_{step}"
 
     # Create save directory if it doesn't exist
     os.makedirs(save_dir, exist_ok=True)
@@ -59,9 +59,6 @@ def main():
             "--save_path", save_path,
         ]
 
-        # Add --old_policy flag if True
-        if old_policy:
-            cmd.append("--old_policy")
 
         print(f"Launching GPU {gpu_id}: start_id={start_id}, num_samples={num_samples}")
         process = subprocess.Popen(cmd)
@@ -76,4 +73,5 @@ def main():
     print("\nAll processes completed!")
 
 if __name__ == "__main__":
-    main()
+    step = int(sys.argv[1]) if len(sys.argv) > 1 else 10
+    main(step)

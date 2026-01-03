@@ -15,11 +15,8 @@ Goal of this file is to generate sequences + obtain log probs for every element
 in the dataset. Will use an offline vLLM engine
 """
 
-def start_engine(model_name: str, policy_path: str, old_policy: bool):
-    if old_policy:
-        lora_req = LoRARequest("old_policy", 1, policy_path)
-    else:
-        lora_req = LoRARequest("current_policy", 1, policy_path)
+def start_engine(model_name: str, policy_path: str):
+    lora_req = LoRARequest("current_policy", 1, policy_path)
 
     llm = LLM(model=model_name, enable_lora=True, max_lora_rank=64, enable_prefix_caching=True)
     return llm, lora_req
@@ -30,7 +27,6 @@ def main(
     policy_path: str,
     gpu_id: int,
     dataset_path: str,
-    old_policy: bool,
     start_id: int,
     num_samples: int,
     max_tokens: int,
@@ -41,7 +37,7 @@ def main(
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     # load the model and lora adapters
-    llm, lora_req = start_engine(model_name, policy_path, old_policy)
+    llm, lora_req = start_engine(model_name, policy_path)
      
     df = pd.read_parquet(dataset_path)
     prompts = []
@@ -49,8 +45,8 @@ def main(
     
     # this is also dependnt on the dataset, so we should move this out
     for row in df.iloc[start_id:start_id+num_samples].itertuples():
-        prompts.append(row[4][0]["content"])
-        ground_truths.append(row[6]["ground_truth"])
+        prompts.append(row[1][0]["content"])
+        ground_truths.append(row[5]["ground_truth"])
     t0 = time.perf_counter()
     with open(save_path, "w") as file:
         for i in range(0, len(prompts), batch_size):
@@ -72,7 +68,7 @@ def main(
                     model_output = "".join([next(iter(d.values())).decoded_token for d in logprobs])
 
                     data = {
-                        "prompt": output.prompt, "prompt_ids": output.prompt_token_ids, "log_probs": log_probs,
+                        "prompt": output.prompt, "prompt_ids": output.prompt_token_ids, "logprobs": log_probs,
                         "output_token_ids": token_ids, "ground_truth": ground_truth, "model_output": model_output,
                         "model_answer": normalize_latex_string(extract_solution(model_output))
                     }
@@ -88,7 +84,6 @@ def parse_args():
     parser.add_argument("--policy_path", type=str, required=True, help="Path to LoRA adapter")
     parser.add_argument("--gpu_id", type=int, required=True, help="GPU ID to use")
     parser.add_argument("--dataset_path", type=str, required=True, help="Path to dataset")
-    parser.add_argument("--old_policy", action="store_true", help="Use old policy")
     parser.add_argument("--start_id", type=int, required=True, help="Starting index in dataset")
     parser.add_argument("--num_samples", type=int, required=True, help="Number of samples to process")
     parser.add_argument("--max_tokens", type=int, required=True, help="Maximum tokens to generate")
@@ -105,7 +100,6 @@ if __name__ == "__main__":
         policy_path=args.policy_path,
         gpu_id=args.gpu_id,
         dataset_path=args.dataset_path,
-        old_policy=args.old_policy,
         start_id=args.start_id,
         num_samples=args.num_samples,
         max_tokens=args.max_tokens,

@@ -1,6 +1,7 @@
 #conda_env: s2l
 import os
 import json
+import numpy as np
 from datasets import Dataset, load_dataset
 
 import argparse
@@ -94,6 +95,84 @@ def load_gsm8k(mode, turn_off_thinking=False):
     else:
         print("non-valid mode passed, can only be either train, eval")
 
+def s2l(dataset, selected_indices_file):
+    """
+    Reformat the oob dataset to work with grpo trainer class.
+
+    Args:
+        dataset: Primary dataset to reformat
+        turn_off_thinking: If True, add /no_think tags to disable thinking mode
+    Returns:
+        Dataset with reformatted prompts
+    """
+    def clean_sample(dataset, index):
+        question = dataset[index]["question"]
+        num_str = dataset[index]["answer"].split("####")[-1]
+        num = int(num_str.replace(",", ""))
+        return {
+            "question": question,
+            "ground_truth": num
+        }
+    reformatted = []
+    selected_indices = np.load(selected_indices_file)
+    selected_samples = [clean_sample(dataset, i) for i in selected_indices]
+    print(len(selected_samples))
+    
+    for sample in selected_samples:
+        prompt = "<|im_start|>system\nPlease reason step by step, and present the answer in LaTex format: \\boxed{Your answer}<|im_end|>\n"
+        prompt += f"<|im_start|>user\n{sample['question']}<|im_end|>\n<|im_start|>assistant\n"
+
+        reformatted.append({
+            "prompt": prompt,
+            "ground_truth": sample["ground_truth"]
+        })
+
+    return Dataset.from_list(reformatted)
+
+
+def load_gsm8k_s2l(mode, selected_indices_file):
+    if mode == "train":
+        return s2l(load_dataset("openai/gsm8k", "main")["train"], selected_indices_file)
+    if mode == "eval":
+        return reformat_dataset(load_dataset("openai/gsm8k", "main")["test"], False)
+    else:
+        print("non-valid mode passed, can only be either train, eval")
+
+def subset(dataset):
+    def clean_sample(dataset, index):
+        question = dataset[index]["question"]
+        num_str = dataset[index]["answer"].split("####")[-1]
+        num = int(num_str.replace(",", ""))
+        return {
+            "question": question,
+            "ground_truth": num
+        }
+    reformatted = []
+    selected_indices =  np.random.choice(7472, 2770, replace=False)
+    selected_samples = [clean_sample(dataset, i) for i in selected_indices]
+    print(len(selected_samples))
+    
+    for sample in selected_samples:
+        prompt = "<|im_start|>system\nPlease reason step by step, and present the answer in LaTex format: \\boxed{Your answer}<|im_end|>\n"
+        prompt += f"<|im_start|>user\n{sample['question']}<|im_end|>\n<|im_start|>assistant\n"
+
+        reformatted.append({
+            "prompt": prompt,
+            "ground_truth": sample["ground_truth"]
+        })
+
+    return Dataset.from_list(reformatted)
+
+
+def load_gsm8k_subset(mode):
+    if mode == "train":
+        return subset(load_dataset("openai/gsm8k", "main")["train"])
+    if mode == "eval":
+        return reformat_dataset(load_dataset("openai/gsm8k", "main")["test"], False)
+    else:
+        print("non-valid mode passed, can only be either train, eval")
+
+
 
 if __name__ == '__main__':
     # example code for turing gsm8k into parquet file for verl training
@@ -101,13 +180,11 @@ if __name__ == '__main__':
     if not os.path.isdir(os.path.join(PROJECT_ROOT, "datasets")):
         os.makedirs(os.path.join(PROJECT_ROOT, "datasets"))
 
-    dataset_name = "gsm8k"
+    dataset_name = "gsm8k_random_subset"
     dataset_save_path = os.path.join(PROJECT_ROOT, "datasets", dataset_name)
-
-    #train_dataset = load_dataset("hiyouga/math12k")["train"]
-    #test_dataset = load_dataset("hiyouga/math12k")["test"]
-    train_dataset = load_gsm8k("train")
-    test_dataset = load_gsm8k("eval")
+    selected_indices_file = "/home/allanz/s2l-rl/data/gsm8k/diverse_indices.npy"
+    train_dataset = load_gsm8k_subset("train")
+    test_dataset = load_gsm8k_subset("eval")
 
     print(train_dataset)
 
